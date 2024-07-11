@@ -1,4 +1,5 @@
-ORORA:
+orora:
+  ros__parameters:
     use_doppler_compensation: true
 
     use_deskewing: false # It's weird, but deskewing rather decreases pose estimation in MulRan dataset

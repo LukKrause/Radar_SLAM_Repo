@@ -8,8 +8,7 @@
   </description>
 
   <maintainer email="paulgkim@kaist.ac.kr">Giseop Kim</maintainer>
-  <maintainer email="lukas.krause@stud.hs-kempten.de">Lukas Krause</maintainer>
-  
+
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -27,5 +26,6 @@
   <depend>image_transport</depend>
 
   <export>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

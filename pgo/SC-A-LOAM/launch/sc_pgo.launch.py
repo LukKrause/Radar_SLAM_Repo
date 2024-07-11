@@ -6,7 +6,7 @@ def generate_launch_description():
         Node(
             package='sc_pgo',
             executable='alaserPGO',
-            name='alaserPGO',
+            name='pgo_node',
             output='screen',
             parameters=[
                 {'keyframe_meter_gap': 0.2},

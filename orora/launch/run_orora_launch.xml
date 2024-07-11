@@ -1,6 +1,6 @@
 <launch>
     <!-- use your path -->
-    <param from="$(find-pkg-share orora)/config/orora_params.yaml" />
+    <param from="/home/lukas/ros2_slam_ws/src/navtech-radar-slam/orora/config/orora_params.yaml" />
     <let name="seq_dir" value="/home/lukas/Downloads/KAIST_Dataset/KAIST03" />
     <let name="do_slam" value="false" />
     <let name="rviz" value="true" />
@@ -18,7 +18,7 @@
     </node>
 
     <group if="$(var rviz)">
-        <node pkg="rviz2" exec="rviz2" name="orora_rviz" args="-d $(find-pkg-share orora)//rviz/orora_viz.rviz" output="screen" />
+        <node pkg="rviz2" exec="rviz2" name="orora_rviz" args="-d /home/lukas/ros2_slam_ws/src/navtech-radar-slam/orora/rviz/orora_viz.rviz" output="screen" />
     </group>
 </launch>
 

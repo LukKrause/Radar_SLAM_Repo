@@ -2,11 +2,11 @@
     <let name="seq_dir" value="/home/lukas/Downloads/KAIST_Dataset/KAIST03" />
     <let name="do_slam" value="true" />
 
-    <include file="$(find-pkg-share orora)/launch/run_orora_launch.xml">
+    <include file="/home/lukas/ros2_slam_ws/src/navtech-radar-slam/orora/launch/run_orora_launch.xml">
         <arg name="seq_dir" value="$(var seq_dir)" />
         <arg name="do_slam" value="$(var do_slam)" />
     </include>
     
-    <include file="$(find-pkg-share pgo)/SC-A-LOAM/launch/sc_pgo_launch.xml" />
+    <include file="/home/lukas/ros2_slam_ws/src/pgo/SC-A-LOAM/launch/sc_pgo_launch.xml" />
 </launch>
 
