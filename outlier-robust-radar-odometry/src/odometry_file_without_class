@@ -1,0 +1,110 @@
+/*
+    PubGT       = node->create_publisher<nav_msgs::msg::Odometry>("/orora/gt", 100);
+    PubOdom     = node->create_publisher<nav_msgs::msg::Odometry>("/orora/odom", 100);
+    PubLaserCloudLocal      = node->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/cloud_local", 100, true);
+    PubLaserCloudGlobal     = node->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/cloud_global", 100, true);
+    PubPrevFeat             = node->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/prev/feat", 100, true);
+    PubPrevCompensated      = node->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/prev/compensated", 100, true);
+    PubCurrFeat             = node->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/curr/feat", 100, true);
+    PubCurrCompensated      = node->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/curr/compensated", 100, true);
+
+    PubImg      = node->create_publisher<sensor_msgs::msg::Image>("orora/matched_img", 100);
+
+    /??
+    image_transport::ImageTransport it(nh);
+    image_transport::Publisher      PubImg = it.advertise("orora/matched_img", 100);
+    /
+
+    // define params
+    bool        do_slam, viz_extraction, viz_matching, stop_each_frame;
+    std::string seq_dir, algorithm, dataset;
+    std::string keypoint_extraction;        // "cen2018", "cen2019", "orb"
+    string      odom_frame  = "odom";
+    string      child_frame = "radar_base";
+    double         frame_rate  = 4.0; // 4 Hz
+    // declare params
+    node->declare_parameter<std::string>("seq_dir", "");
+    node->declare_parameter<std::string>("algorithm", "");
+    node->declare_parameter<std::string>("dataset", "");
+    node->declare_parameter<std::string>("keypoint_extraction", "cen2019");
+    node->declare_parameter<std::string>("odom_frame", "odom");
+    node->declare_parameter<std::string>("child_frame", "radar_base");
+    node->declare_parameter<int>("end_idx", -1);
+    node->declare_parameter<bool>("do_slam", false);
+    node->declare_parameter<bool>("viz_extraction", false);
+    node->declare_parameter<bool>("viz_matching", false);
+    node->declare_parameter<bool>("stop_each_frame", false);
+    node->declare_parameter<double>("frame_rate", 4.0);
+    // get params
+    node->get_parameter("seq_dir", seq_dir);
+    node->get_parameter("algorithm", algorithm);
+    node->get_parameter("dataset", dataset);
+    node->get_parameter("keypoint_extraction", keypoint_extraction);
+    node->get_parameter("odom_frame", odom_frame);
+    node->get_parameter("child_frame", child_frame);
+    node->get_parameter("end_idx", end_idx);
+    node->get_parameter("do_slam", do_slam);
+    node->get_parameter("viz_extraction", viz_extraction);
+    node->get_parameter("viz_matching", viz_matching);
+    node->get_parameter("stop_each_frame", stop_each_frame);
+    node->get_parameter("frame_rate", frame_rate);
+
+    std::cout << "\033[1;32mTarget dataset: " << dataset << " \033[0m" << std::endl;
+    std::cout << "\033[1;32mTarget algorithm: " << algorithm << " \033[0m" << std::endl;
+
+
+    // Below options are for ORORA //
+    // ORORA parameters
+    bool   estimating_scale;
+    int    num_max_iter;
+    double noise_bound, noise_bound_radial, noise_bound_tangential;
+    double noise_bound_coeff, gnc_factor, rot_cost_diff_thr, voxel_size;
+    // declare params
+    node->declare_parameter<bool>("/ORORA/estimating_scale", false);
+    node->declare_parameter<double>("/ORORA/noise_bound", 0.5);
+    node->declare_parameter<double>("/ORORA/noise_bound_radial", 0.3536);
+    node->declare_parameter<double>("/ORORA/noise_bound_tangential", 9.0);
+    node->declare_parameter<double>("/ORORA/noise_bound_coeff", 1.0);
+    node->declare_parameter<double>("/ORORA/rotation/gnc_factor", 1.39);
+    node->declare_parameter<double>("/ORORA/rotation/rot_cost_diff_thr", 0.0001);
+    node->declare_parameter<int>("/ORORA/rotation/num_max_iter", 50);
+    // get params
+    node->get_parameter("/ORORA/estimating_scale", estimating_scale);
+    node->get_parameter("/ORORA/noise_bound", noise_bound);
+    node->get_parameter("/ORORA/noise_bound_radial", noise_bound_radial);
+    node->get_parameter("/ORORA/noise_bound_tangential", noise_bound_tangential);
+    node->get_parameter("/ORORA/noise_bound_coeff", noise_bound_coeff);
+    node->get_parameter("/ORORA/rotation/gnc_factor", gnc_factor);
+    node->get_parameter("/ORORA/rotation/rot_cost_diff_thr", rot_cost_diff_thr);
+    node->get_parameter("/ORORA/rotation/num_max_iter", num_max_iter);
+
+
+    // DOPPLER
+    double      beta = 0.049;
+    // Implementation details: check stop motion
+    bool check_stop_motion;
+    int num_feat_thr_for_stop_motion;
+    // declare params
+    node->declare_parameter<bool>("/ORORA/stop_motion/check_stop_motion", true);
+    node->declare_parameter<int>("/ORORA/stop_motion/num_feat_thr_for_stop_motion", 600);
+    // get params
+    node->get_parameter("/ORORA/stop_motion/check_stop_motion", check_stop_motion);
+    node->get_parameter("/ORORA/stop_motion/num_feat_thr_for_stop_motion", num_feat_thr_for_stop_motion);
+
+
+    // Options for feature matching
+    bool        use_voxelization, use_doppler_compensation, use_deskewing;
+    std::string deskewing_target;
+     // declare params
+    node->declare_parameter<double>("/ORORA/voxel_size", 0.5);
+    node->declare_parameter<bool>("/ORORA/use_voxelization", false);
+    node->declare_parameter<bool>("/ORORA/use_doppler_compensation", false);
+    node->declare_parameter<bool>("/ORORA/use_deskewing", false);
+    node->declare_parameter<std::string>("/ORORA/deskewing_target", "rot"); // "rot" or "tf"
+    // get params
+    node->get_parameter("/ORORA/voxel_size", voxel_size);
+    node->get_parameter("/ORORA/use_voxelization", use_voxelization);
+    node->get_parameter("/ORORA/use_doppler_compensation", use_doppler_compensation);
+    node->get_parameter("/ORORA/use_deskewing", use_deskewing);
+    node->get_parameter("/ORORA/deskewing_target", deskewing_target);
+    */
