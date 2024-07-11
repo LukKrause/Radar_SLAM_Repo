@@ -17,6 +17,8 @@
 #include "radar_utils.hpp"
 #include <tf2/transform_datatypes.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 //#include "matplotlibcpp.h"  // NOLINT
 
 using namespace std;

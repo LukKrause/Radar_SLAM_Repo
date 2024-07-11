@@ -6,6 +6,9 @@
 #include <string>
 #include <experimental/filesystem>
 #include <boost/format.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/transform_datatypes.h>
+
 
 #ifndef RADAR_DATALOADER_H
 #define RADAR_DATALOADER_H
@@ -175,12 +178,12 @@ public:
     void XYYaw2SE2(const std::vector<float> &xyyaw_rel, Eigen::Matrix4d &Tgt) {
         Tgt(0, 3) = xyyaw_rel[0];
         Tgt(1, 3) = xyyaw_rel[1];
-        tf::Quaternion q_tf;
+        tf2::Quaternion q_tf;
         if (dataset_name_ == "oxford") {
-            q_tf = tf::createQuaternionFromYaw(xyyaw_rel[2]);
+            q_tf.setRPY(0, 0, xyyaw_rel[2]);
         } else if (dataset_name_ == "mulran") {
             // ToDo. Why minus yaw is required?
-            q_tf = tf::createQuaternionFromYaw(-xyyaw_rel[2]);
+            q_tf.setRPY(0, 0, -xyyaw_rel[2]);
         }
         Eigen::Quaternionf q(q_tf.w(), q_tf.x(), q_tf.y(), q_tf.z());
         Tgt.block<3, 3>(0, 0) = q.toRotationMatrix().cast<double>();

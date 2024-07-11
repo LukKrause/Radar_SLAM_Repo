@@ -1,0 +1,24 @@
+<launch>
+    <!-- use your path -->
+    <param from="$(find-pkg-share orora)/config/orora_params.yaml" />
+    <let name="seq_dir" value="/home/lukas/Downloads/KAIST_Dataset/KAIST03" />
+    <let name="do_slam" value="false" />
+    <let name="rviz" value="true" />
+
+    <node pkg="orora" exec="orora_odom" name="orora_odom" output="screen">
+        <param name="seq_dir" value="$(var seq_dir)" />
+        <param name="do_slam" value="$(var do_slam)" />
+        <param name="keypoint_extraction" value="cen2018" />
+        <param name="algorithm" value="ORORA" />
+        <param name="dataset" value="mulran" />
+        <param name="viz_extraction" value="false" />
+        <param name="viz_matching" value="false" />
+        <param name="frame_rate" value="4" />
+        <param name="stop_each_frame" value="false" />
+    </node>
+
+    <group if="$(var rviz)">
+        <node pkg="rviz2" exec="rviz2" name="orora_rviz" args="-d $(find-pkg-share orora)//rviz/orora_viz.rviz" output="screen" />
+    </group>
+</launch>
+

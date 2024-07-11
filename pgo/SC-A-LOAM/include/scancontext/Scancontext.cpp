@@ -20,19 +20,22 @@ float deg2rad(float degrees)
 }
 
 
-float xy2theta( const float & _x, const float & _y )
+float xy2theta( const float & _x, const float & _y ) 
 {
-    if ( (_x >= 0) & (_y >= 0)) 
-        return (180/M_PI) * atan(_y / _x);
-
-    if ( (_x < 0) & (_y >= 0)) 
-        return 180 - ( (180/M_PI) * atan(_y / (-_x)) );
-
-    if ( (_x < 0) & (_y < 0)) 
-        return 180 + ( (180/M_PI) * atan(_y / _x) );
-
-    if ( (_x >= 0) & (_y < 0))
-        return 360 - ( (180/M_PI) * atan((-_y) / _x) );
+    if ((_x >= 0) & (_y >= 0)) 
+        return (180 / M_PI) * atan(_y / _x);
+        
+    else if ((_x < 0) & (_y >= 0)) 
+        return 180 - ((180 / M_PI) * atan(_y / (-_x)));
+        
+    else if ((_x < 0) & (_y < 0)) 
+        return 180 + ((180 / M_PI) * atan(_y / _x));
+        
+    else if ((_x >= 0) & (_y < 0)) 
+        return 360 - ((180 / M_PI) * atan((-_y) / _x));
+        
+    else
+        return 0.0f; // Default return, though theoretically unreachable
 } // xy2theta
 
 

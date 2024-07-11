@@ -1,7 +1,8 @@
 #include "visualization.hpp"
 
 
-void CorrespondenceMarker::setCorrespondenceMarker(rclcpp::Publisher &pub_corr_true, rclcpp::Publisher &pub_corr_false,
+void CorrespondenceMarker::setCorrespondenceMarker(rclcpp::Publisher<visualization_msgs::msg::Marker> &pub_corr_true,
+                                                   rclcpp::Publisher<visualization_msgs::msg::Marker> &pub_corr_false,
                                                    const float corr_inlier_dis) {
     for (int idx = 0; idx < src_tf_.size(); ++idx) {
         const auto &sp = src_tf_[idx];
@@ -17,15 +18,15 @@ void CorrespondenceMarker::setCorrespondenceMarker(rclcpp::Publisher &pub_corr_t
 //    }
 }
 
-void CorrespondenceMarker::setCorrespondenceMarker(rclcpp::Publisher &pub_corr, visualization_msgs::Marker marker,
-                                                   bool is_true) {
+void CorrespondenceMarker::setCorrespondenceMarker(rclcpp::Publisher<visualization_msgs::msg::Marker> &pub_corr,
+                                                   visualization_msgs::msg::Marker marker, bool is_true) {
     if (!marker.points.empty()) marker.points.clear();
     marker.header.frame_id = "/map";
     marker.header.stamp    = rclcpp::Time();
     marker.ns              = "visualize correspondence";
     marker.id              = num_visuals;
-    marker.type            = visualization_msgs::Marker::LINE_LIST;
-    marker.action          = visualization_msgs::Marker::ADD;
+    marker.type            = visualization_msgs::msg::Marker::LINE_LIST;
+    marker.action          = visualization_msgs::msg::Marker::ADD;
 
     marker.scale.x = 0.75;
     marker.color.a = 1.0; // Don't forget to set the alpha!
@@ -35,8 +36,8 @@ void CorrespondenceMarker::setCorrespondenceMarker(rclcpp::Publisher &pub_corr, 
     marker.pose.orientation.z = 0;
     marker.pose.orientation.w = 1;
 
-    geometry_msgs::Point srcP;
-    geometry_msgs::Point tgtP;
+    geometry_msgs::msg::Point srcP;
+    geometry_msgs::msg::Point tgtP;
     srcP.z = 0;
     tgtP.z = 0;
 

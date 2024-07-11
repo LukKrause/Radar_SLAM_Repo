@@ -21,8 +21,11 @@ find_package(Boost REQUIRED COMPONENTS
     filesystem
 )
 find_package(PCL REQUIRED)
+find_package(pcl_conversions REQUIRED)
 
 find_package(geometry_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -34,13 +37,13 @@ find_package(cv_bridge REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-"""
-catkin_package(
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs
-  DEPENDS EIGEN3 PCL 
-  INCLUDE_DIRS include
-)
-"""
+
+#catkin_package(
+#  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs
+#  DEPENDS EIGEN3 PCL 
+#  INCLUDE_DIRS include
+#)
+
 
 # Option for system TBB
 option(USE_SYSTEM_TBB "Use system pre-installed oneAPI/tbb" OFF)
@@ -53,6 +56,10 @@ include_directories(
   	${PCL_INCLUDE_DIRS}
   	${Boost_INCLUDE_DIRS}
   	${EIGEN_INCLUDE_DIR}
+)
+
+link_directories(
+  ${PCL_LIBRARY_DIRS}
 )
 
 # List all include directories for debugging
@@ -69,6 +76,8 @@ set(orora_src
   	src/association.cpp
   	src/visualization.cpp
   	include/conversion.hpp
+  	include/OdomNode.hpp
+  	src/OdomNode.cpp
 )
 
 add_executable(orora_odom src/odometry.cpp ${orora_src})
@@ -91,6 +100,8 @@ ament_target_dependencies(orora_odom
   	rclcpp
   	rclpy
   	geometry_msgs
+  	tf2_geometry_msgs
+  	visualization_msgs
   	nav_msgs
   	sensor_msgs
   	std_msgs
@@ -99,6 +110,7 @@ ament_target_dependencies(orora_odom
   	tf2_ros
   	image_transport
   	cv_bridge
+  	pcl_conversions
 )
 
 add_executable(mulran_generate_gt src/mulran_generate_gt.cpp src/radar_utils.cpp)
@@ -113,6 +125,8 @@ ament_target_dependencies(mulran_generate_gt
   	rclcpp
   	rclpy
   	geometry_msgs
+  	tf2_geometry_msgs
+  	visualization_msgs
   	nav_msgs
   	sensor_msgs
   	std_msgs
@@ -121,6 +135,7 @@ ament_target_dependencies(mulran_generate_gt
   	tf2_ros
   	image_transport
   	cv_bridge
+  	pcl_conversions
 )	
 
 # Install targets

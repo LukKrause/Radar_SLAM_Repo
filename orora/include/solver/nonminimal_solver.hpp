@@ -839,6 +839,8 @@ namespace orora {
 
                 inliers.points.emplace_back(p);
             }
+            
+            return inliers;
         }
 
         inline Eigen::Matrix2d svdRot2d(const Eigen::Matrix<double, 2, Eigen::Dynamic> &X,

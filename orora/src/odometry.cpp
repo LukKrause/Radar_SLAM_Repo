@@ -1,12 +1,13 @@
 #include <omp.h>
 //#include <ros/ros.h>
 #include <rclcpp/rclcpp.hpp>
-#include <image_transport/image_transport.h>
+#include <image_transport/image_transport.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2/transform_datatypes.h>
 //#include <tf/transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 
 #include "radar_loader.hpp"
@@ -16,6 +17,7 @@
 #include "solver/nonminimal_solver.hpp"
 #include "SE2posemanager.hpp"
 #include "ORORA.hpp"
+#include "OdomNode.hpp"
 
 void signalCallbackHandler(int signum) {
     std::cout << "Caught Ctrl + C!" << std::endl;
@@ -23,8 +25,9 @@ void signalCallbackHandler(int signum) {
     exit(signum);
 }
 
-void pubTF(const Eigen::Matrix4d &latest_pose, const string &odom_frame, const string &child_frame) {
-    static tf2_ros::TransformBroadcaster br;
+void pubTF(const Eigen::Matrix4d &latest_pose, const string &odom_frame, const string &child_frame, rclcpp::Node::SharedPtr node) {
+    static tf2_ros::TransformBroadcaster br(node);
+    //static std::shared_ptr<tf2_ros::TransformBroadcaster> br = std::make_shared<tf2_ros::TransformBroadcaster>(node);
     geometry_msgs::msg::TransformStamped        alias_transform_msg;
     Eigen::Quaterniond                          q(latest_pose.block<3, 3>(0, 0));
     alias_transform_msg.header.stamp            = rclcpp::Clock().now();
@@ -48,19 +51,22 @@ Eigen::Matrix4d curr_gt;
 float CORR_INLIER_DIST = 0.5;
 int   end_idx          = -1; // radar_files.size() - 1;
 
-class OdomNode : public rclcpp::Node {
+
+/*class OdomNode : public rclcpp::Node {
 public:
-    OdomNode() : Node("orora"), it_(this) {
+    OdomNode() : Node("orora") {
         // create Publisher
-        PubGT = this->create_publisher<nav_msgs::msg::Odometry>("/orora/gt", 100);
-        PubOdom = this->create_publisher<nav_msgs::msg::Odometry>("/orora/odom", 100);
-        PubLaserCloudLocal = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/cloud_local", 100, true);
-        PubLaserCloudGlobal = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/cloud_global", 100, true);
-        PubPrevFeat = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/prev/feat", 100, true);
-        PubPrevCompensated = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/prev/compensated", 100, true);
-        PubCurrFeat = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/curr/feat", 100, true);
-        PubCurrCompensated = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/curr/compensated", 100, true);
-        PubImg = it_.advertise("orora/matched_img", 100);
+        PubGT = this->create_publisher<nav_msgs::msg::Odometry>("/orora/gt", rclcpp::QoS(100));
+        PubOdom = this->create_publisher<nav_msgs::msg::Odometry>("/orora/odom", rclcpp::QoS(100));
+        PubLaserCloudLocal = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/cloud_local", rclcpp::QoS(100));
+        PubLaserCloudGlobal = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/cloud_global", rclcpp::QoS(100));
+        PubPrevFeat = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/prev/feat", rclcpp::QoS(100));
+        PubPrevCompensated = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/prev/compensated", rclcpp::QoS(100));
+        PubCurrFeat = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/curr/feat", rclcpp::QoS(100));
+        PubCurrCompensated = this->create_publisher<sensor_msgs::msg::PointCloud2>("/orora/curr/compensated", rclcpp::QoS(100));
+        // initialize ImageTransport after Node is created
+        it_ = std::make_shared<image_transport::ImageTransport>(this->shared_from_this());
+        PubImg = it_->advertise("orora/matched_img");
 
         // declare and get params
         this->declare_parameter<std::string>("seq_dir", "");
@@ -126,6 +132,9 @@ public:
         this->get_parameter("/ORORA/use_doppler_compensation", use_doppler_compensation);
         this->get_parameter("/ORORA/use_deskewing", use_deskewing);
         this->get_parameter("/ORORA/deskewing_target", deskewing_target);
+        
+        
+
     }
 
 private:
@@ -139,23 +148,16 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr PubCurrFeat;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr PubCurrCompensated;
     image_transport::Publisher PubImg;
-    image_transport::ImageTransport it_;
+    std::shared_ptr<image_transport::ImageTransport> it_;
 
-
-    /* Alle Params zusammengefasst
-    std::string     seq_dir, algorithm, dataset, keypoint_extraction, odom_frame, child_frame, deskewing_target;
-    bool            do_slam, viz_extraction, viz_matching, stop_each_frame, estimating_scale, check_stop_motion, use_voxelization, use_doppler_compensation, use_deskewing;
-    double          frame_rate, noise_bound, noise_bound_radial, noise_bound_tangential, noise_bound_coeff, gnc_factor, rot_cost_diff_thr, voxel_size;
-    int             end_idx, num_max_iter, num_feat_thr_for_stop_motion;
-    */
 
     // define all Parameters
     bool            do_slam, viz_extraction, viz_matching, stop_each_frame;
     std::string     seq_dir, algorithm, dataset;
-    std::string     keypoint_extraction;        // "cen2018", "cen2019", "orb"
-    std::string     odom_frame;                 // "odom";
-    std::string     child_frame;                // "radar_base";
-    double          frame_rate;                 // 4 Hz
+    std::string     keypoint_extraction;        		// "cen2018", "cen2019", "orb"
+    std::string     odom_frame;                 		// "odom";
+    std::string     child_frame;                		// "radar_base";
+    double          frame_rate;                 		// 4 Hz
 
     // ORORA Params
     bool            estimating_scale;
@@ -164,19 +166,18 @@ private:
     double          noise_bound_coeff, gnc_factor, rot_cost_diff_thr, voxel_size;
 
     // DOPPLER params
-    //double          beta = 0.049;
-    bool            check_stop_motion;  // Implementation details: check stop motion
+    bool            check_stop_motion;  			// Implementation details: check stop motion
     int             num_feat_thr_for_stop_motion;
+    double          beta = 0.049;
 
     // Feature Matching Params
     bool            use_voxelization, use_doppler_compensation, use_deskewing;
     std::string     deskewing_target;
 
-}
+};*/
 
 
 
-//std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
 
 // modified for MulRan dataset batch evaluation
 int main(int argc, char *argv[]) {
@@ -187,37 +188,48 @@ int main(int argc, char *argv[]) {
 
     curr_odom = Eigen::Matrix4d::Identity(4, 4); // initial pose is I
     curr_gt   = Eigen::Matrix4d::Identity(4, 4); // initial pose is I
+    /*
+    // direct access on publisher of OdomNode
+    auto PubGT 			= node->PubGT;
+    auto PubOdom 		= node->PubOdom;
+    auto PubLaserCloudLocal 	= node->PubLaserCloudLocal;
+    auto PubLaserCloudGlobal 	= node->PubLaserCloudGlobal;
+    auto PubPrevFeat 		= node->PubPrevFeat;
+    auto PubPrevCompensated 	= node->PubPrevCompensated;
+    auto PubCurrFeat 		= node->PubCurrFeat;
+    auto PubCurrCompensated 	= node->PubCurrCompensated;
+    auto PubImg 		= node->PubImg;*/
+    
+    // get Parameter from OdomNode Class
+    std::string deskewing_target     = node->getDeskewingTarget();
+    bool use_voxelization            = node->getUseVoxelization();
+    double noise_bound               = node->getNoiseBound();
+    double noise_bound_radial        = node->getNoiseBoundRadial();
+    double noise_bound_tangential    = node->getNoiseBoundTangential();
+    double frame_rate                = node->getFrameRate();
+    int end_idx                      = node->getEndIdx();
+    std::string algorithm            = node->getAlgorithm();
+    std::string dataset              = node->getDataset();
+    std::string keypoint_extraction  = node->getKeypointExtraction();
+    std::string seq_dir              = node->getSeqDir();
+    std::string odom_frame           = node->getOdomFrame();
+    std::string child_frame          = node->getChildFrame();
+    bool do_slam                     = node->getDoSlam();
+    bool viz_extraction              = node->getVizExtraction();
+    bool viz_matching                = node->getVizMatching();
+    bool stop_each_frame             = node->getStopEachFrame();
+    bool estimating_scale            = node->getEstimatingScale();
+    bool check_stop_motion           = node->getCheckStopMotion();
+    bool use_doppler_compensation    = node->getUseDopplerCompensation();
+    bool use_deskewing               = node->getUseDeskewing();
+    double noise_bound_coeff         = node->getNoiseBoundCoeff();
+    double gnc_factor                = node->getGncFactor();
+    double rot_cost_diff_thr         = node->getRotCostDiffThr();
+    double voxel_size                = node->getVoxelSize();
+    int num_max_iter                 = node->getNumMaxIter();
+    int num_feat_thr_for_stop_motion = node->getNumFeatThrForStopMotion();
+    double beta                      = node->getBeta();
 
-    // get Parameter from Node Class
-     // Abrufen der Parameter von der Node-Instanz
-    std::string deskewing_target    = node->deskewing_target;
-    bool use_voxelization           = node->use_voxelization;
-    double noise_bound              = node->noise_bound;
-    double noise_bound_radial       = node->noise_bound_radial;
-    double noise_bound_tangential   = node->noise_bound_tangential;
-    double frame_rate               = node->frame_rate;
-    int end_idx                     = node->end_idx;
-    std::string algorithm           = node->algorithm;
-    std::string dataset             = node->dataset;
-    std::string keypoint_extraction = node->keypoint_extraction;
-    std::string seq_dir             = node->seq_dir;
-    std::string odom_frame          = node->odom_frame;
-    std::string child_frame         = node->child_frame;
-    bool do_slam                    = node->do_slam;
-    bool viz_extraction             = node->viz_extraction;
-    bool viz_matching               = node->viz_matching;
-    bool stop_each_frame            = node->stop_each_frame;
-    bool estimating_scale           = node->estimating_scale;
-    bool check_stop_motion          = node->check_stop_motion;
-    bool use_doppler_compensation   = node->use_doppler_compensation;
-    bool use_deskewing              = node->use_deskewing;
-    double noise_bound_coeff        = node->noise_bound_coeff;
-    double gnc_factor               = node->gnc_factor;
-    double rot_cost_diff_thr        = node->rot_cost_diff_thr;
-    double voxel_size               = node->voxel_size;
-    int num_max_iter                = node->num_max_iter;
-    int num_feat_thr_for_stop_motion = node->num_feat_thr_for_stop_motion;
-    double beta = 0.049; // default value
 
 
     if (deskewing_target != "rot" && deskewing_target != "tf")
@@ -387,19 +399,23 @@ int main(int argc, char *argv[]) {
          * Below codes are just for visualization
          */
         auto set_odom_msg = [&](const Eigen::Matrix4d &pose, const double yaw) {
-            nav_msgs::Odometry odom;
+            nav_msgs::msg::Odometry odom;
             odom.header.frame_id       = odom_frame;
             odom.child_frame_id        = child_frame;
             odom.header.stamp          = time_now;
             odom.pose.pose.position.x  = pose(0, 3);
             odom.pose.pose.position.y  = pose(1, 3);
             odom.pose.pose.position.z  = pose(2, 3);
-            odom.pose.pose.orientation = tf2::createQuaternionMsgFromRollPitchYaw(0.0, 0.0, yaw);
+            tf2::Quaternion q_tf;
+            q_tf.setRPY(0.0, 0.0, yaw);
+            odom.pose.pose.orientation = tf2::toMsg(q_tf);
             return odom;
         };
 
-        PubOdom.publish(set_odom_msg(curr_odom, curr_yaw)); // last pose
-        PubGT.publish(set_odom_msg(curr_gt, curr_gt_yaw)); // last pose
+        //PubOdom->publish(set_odom_msg(curr_odom, curr_yaw)); // last pose
+        //PubGT->publish(set_odom_msg(curr_gt, curr_gt_yaw)); // last pose
+        node->publishOdom(set_odom_msg(curr_odom, curr_yaw)); // last pose
+        node->publishGT(set_odom_msg(curr_gt, curr_gt_yaw)); // last pose
         cout << "Complete to publish pose! " << endl;
 
         // for scan context (in this naive case, we can say we will use binary scan context).
@@ -415,19 +431,21 @@ int main(int argc, char *argv[]) {
                      pt.z += constant_z_nonzero;
                  });
 
-        PubLaserCloudLocal.publish(cloud2msg(*laserCloudLocal, child_frame));
-        PubLaserCloudGlobal.publish(cloud2msg(*laserCloudGlobal, odom_frame));
+        //PubLaserCloudLocal->publish(cloud2msg(*laserCloudLocal, child_frame));
+        //PubLaserCloudGlobal->publish(cloud2msg(*laserCloudGlobal, odom_frame));
+        node->publishLaserCloudLocal(cloud2msg(*laserCloudLocal, child_frame));
+        node->publishLaserCloudGlobal(cloud2msg(*laserCloudGlobal, odom_frame));
 
-        pubTF(curr_odom, odom_frame, child_frame);
+        pubTF(curr_odom, odom_frame, child_frame, node);
         cout << "Complete to publish cloud! " << endl;
 
         /***********************************************/
 
         /*** * Feature visualization */
-//        PubPrevFeat.publish(cloud2msg(eigenxy2pcl(prev_feat.feat_in_cart_), child_frame));
-//        PubCurrFeat.publish(cloud2msg(eigenxy2pcl(curr_feat.feat_in_cart_), child_frame));
-//        PubPrevCompensated.publish(cloud2msg(eigenxy2pcl(prev_feat.feat_compensated_), child_frame));
-//        PubCurrCompensated.publish(cloud2msg(eigenxy2pcl(prev_feat.feat_compensated_), child_frame));
+//        PubPrevFeat->publish(cloud2msg(eigenxy2pcl(prev_feat.feat_in_cart_), child_frame));
+//        PubCurrFeat->publish(cloud2msg(eigenxy2pcl(curr_feat.feat_in_cart_), child_frame));
+//        PubPrevCompensated->publish(cloud2msg(eigenxy2pcl(prev_feat.feat_compensated_), child_frame));
+//        PubCurrCompensated->publish(cloud2msg(eigenxy2pcl(prev_feat.feat_compensated_), child_frame));
 
         if (viz_matching && algorithm == "ORORA") {
 
@@ -467,8 +485,22 @@ int main(int argc, char *argv[]) {
             text_xy.x = img_concat_bgr.cols - 380;
             std::string text_in_fig = std::string(2 - inlier_ratio_txt.length(), ' ') + inlier_ratio_txt + "%";
             cv::putText(img_concat_bgr, text_in_fig, text_xy, 1, 10, cv::Scalar(0, 128, 255), 8);
-            sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_concat_bgr).toImageMsg();
-            PubImg.publish(msg);
+            // ROS1
+            // sensor_msgs::msg::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_concat_bgr).toImageMsg(); 
+            
+            // ROS2
+            auto img_msg = std::make_shared<sensor_msgs::msg::Image>();
+            img_msg->header.frame_id = "camera_frame";
+            img_msg->height = img_concat_bgr.rows;
+            img_msg->width = img_concat_bgr.cols;
+            img_msg->encoding = "bgr8";
+            img_msg->is_bigendian = false;
+            size_t img_size = img_concat_bgr.step * img_concat_bgr.rows;
+            img_msg->data.resize(img_size);
+            memcpy(&img_msg->data[0], img_concat_bgr.data, img_size);
+            // publish
+            // PubImg->publish(img_msg);
+            node->publishImg(*img_msg);
 
             // If you want to save some images
 //            std::string count_str = std::to_string(i);
@@ -492,7 +524,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    rclcpp::spinOnce();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
 
     return 0;
 }

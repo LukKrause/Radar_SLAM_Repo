@@ -1,0 +1,33 @@
+Migration from ROS1 to ROS2
+
+Anpassen der Package.xml files
+    Buildtool Depend: catkin wurde durch ament_cmake ersetzt.
+    Abhängigkeiten:
+    	roscpp und rospy wurden durch rclcpp ersetzt (es gibt auch rclpy für Python, falls notwendig).
+    	tf wurde durch tf2 und tf2_ros ersetzt.
+    	rosbag ist aktuell in ROS2 als rosbag2 verfügbar, falls es benötigt wird.
+    	Die anderen Abhängigkeiten (geometry_msgs, nav_msgs, sensor_msgs, std_msgs, image_transport) bleiben gleich.
+    
+
+Anpassen der CmakeLists.xml files
+    Find-Package:
+    	catkin wurde durch ament_cmake ersetzt.
+    	ROS2-Pakete (rclcpp, tf2, tf2_ros) werden gefunden und verwendet.
+    	roscpp und rospy wurden entfernt, da rclcpp für C++ verwendet wird.
+
+    Include-Verzeichnisse:
+    	catkin_INCLUDE_DIRS wurde entfernt, da dies durch die einzelnen Pakete ersetzt wurde.
+
+    Executables und Libraries:
+    	ament_target_dependencies wurde hinzugefügt, um die Abhängigkeiten für die ausführbaren Dateien zu deklarieren.
+    	target_link_libraries wurde angepasst, um die richtigen Bibliotheken zu verlinken.
+
+    Installationsanweisungen:
+    	Die Installation von Zielen und Launch-Dateien wurde angepasst, um den ROS2-Standard zu erfüllen.
+    	
+    	
+Anpassen von CPP und HPP Files
+	ros -> rclcpp
+	*_msgs:: -> _msgs::msg::
+	Nodes anders definieren und Parametrieren
+	

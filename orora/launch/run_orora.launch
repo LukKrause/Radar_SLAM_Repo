@@ -2,7 +2,7 @@
     <!-- use your path -->
     <rosparam command="load" file="$(find orora)/config/orora_params.yaml" />
 
-    <arg name="seq_dir" default="" />
+    <arg name="seq_dir" default="/home/lukas/Downloads/KAIST_Dataset/KAIST03" />
     <arg name="do_slam" default="false" />
 
     <param name="seq_dir" type="string" value="$(arg seq_dir)" />
